@@ -5,6 +5,8 @@ A self‑contained, cross‑browser HTML payload that demonstrates the extreme l
 ## ⚠️ Important Notice
 This repository is provided **strictly for educational and defensive research purposes**. Use only on devices you own or have explicit permission to test. The author is not responsible for any damage, data loss, or misuse.
 
+## 🖇️https://browser-killer.netlify.app
+
 ## Features
 - **Synchronous infinite loop** – blocks the main thread permanently.
 - **64 dedicated Web Workers** – saturate all CPU cores with mathematical operations.
